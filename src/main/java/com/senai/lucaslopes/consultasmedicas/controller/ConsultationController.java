@@ -20,31 +20,31 @@ public class ConsultationController {
 
     @GetMapping
     public List<Consultation> listarTodasConsultas() {
-        return consultationService.findAllPaciente();
+        return consultationService.obterConsultas();
     }
 
     @GetMapping("/{id}")
     public Consultation obterConsultaPorId(@PathVariable Integer id) {
-        return consultationService.findByIdPaciente(id);
+        return consultationService.buscarConsultaPorId(id);
     }
 
     @PostMapping
     public Consultation criarConsulta(@RequestBody Consultation consultation) {
-        return consultationService.salvarConsulta(consultation);
+        return consultationService.agendarConsulta(consultation);
     }
 
     @GetMapping("/paciente/{nome}")
     public List<Consultation> listarConsultasPorPaciente(@PathVariable String nome) {
-        return consultationService.consultasPaciente(nome);
+        return consultationService.buscarConsultasPorPaciente(nome);
     }
 
     @PutMapping
     public Consultation modificarConsulta(@RequestBody Consultation consultation) {
-        return consultationService.atualizarConsulta(consultation);
+        return consultationService.modificarConsulta(consultation);
     }
 
     @DeleteMapping("/{id}")
     public void removerConsulta(@PathVariable Integer id) {
-        consultationService.delete(id);
+        consultationService.cancelarConsulta(id);
     }
 }

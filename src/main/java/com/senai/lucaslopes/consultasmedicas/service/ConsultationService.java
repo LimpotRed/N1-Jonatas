@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ConsultationService {
@@ -22,77 +23,101 @@ public class ConsultationService {
     @Autowired
     private DoctorRepository doctorRepository;
 
-    public List<Consultation> findAllPaciente() {
+    public List<Consultation> obterConsultas() {
         return consultationRepository.findAll();
     }
 
-    public Consultation findByIdPaciente(int id) {
-        return consultationRepository.findById(id).orElseThrow(() -> new RuntimeException("Não possui consulta"));
+    public Consultation buscarConsultaPorId(int id) {
+        Optional<Consultation> consulta = consultationRepository.findById(id);
+        return consulta.orElseThrow(() -> new RuntimeException("Consulta não encontrada"));
     }
 
-    public List<Consultation> consultasPaciente(String nome){
-        return consultationRepository.buscaConsultaPaciente(nome);
+    public List<Consultation> buscarConsultasPorPaciente(String nomePaciente) {
+        return consultationRepository.buscaConsultaPaciente(nomePaciente);
     }
 
+    public Consultation agendarConsulta(Consultation consulta) {
 
-    public Consultation salvarConsulta(Consultation consultation) {
-        boolean consultaExiste = consultationRepository.existsByPacienteIdAndHorarioConsultaAndDataConsulta(
-                consultation.getPaciente().getId(),
-                consultation.getHorarioConsulta(),
-                consultation.getDataConsulta()
-        );
-        if (consultaExiste) {
-            throw new RuntimeException("Paciente ja possui consulta nessa data");
+        if (isConsultaExistente(consulta)) {
+            throw new RuntimeException("O paciente já possui uma consulta agendada nesta data e horário.");
         }
 
-        consultation.getPaciente().getConsultas().add(consultation);
-        consultation.getMedico().getConsultas().add(consultation);
-        consultation.setStatus(ConsultationStatus.CONSULTA_AGENDADA);
 
-        return consultationRepository.save(consultation);
+        adicionarConsultaPacienteEMedico(consulta);
+
+
+        consulta.setStatus(ConsultationStatus.CONSULTA_AGENDADA);
+
+
+        return salvarConsultaEAtualizarRelacionados(consulta);
     }
 
+    public void cancelarConsulta(Integer id) {
 
-    public void delete(Integer id) {
-        Consultation consultation = consultationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Não foi encontrada nenhuma consulta"));
+        Consultation consulta = buscarConsultaPorId(id);
 
-        consultation.getPaciente().getConsultas().remove(consultation);
-        patientRepository.save(consultation.getPaciente());
 
-        consultation.getMedico().getConsultas().remove(consultation);
-        doctorRepository.save(consultation.getMedico());
-
-        if (consultation.getStatus() == ConsultationStatus.CONSULTA_REALIZADA) {
-            throw new RuntimeException("Essa consulta ja foi realizada");
+        if (consulta.getStatus() == ConsultationStatus.CONSULTA_REALIZADA) {
+            throw new RuntimeException("Não é possível cancelar uma consulta já realizada.");
         }
-        consultation.setStatus(ConsultationStatus.CONSULTA_CANCELADA);
+
+        removerConsultaPacienteEMedico(consulta);
+        consulta.setStatus(ConsultationStatus.CONSULTA_CANCELADA);
+
         consultationRepository.deleteById(id);
     }
 
+    public Consultation modificarConsulta(Consultation consultaAtualizada) {
+        Consultation consultaExistente = buscarConsultaPorId(consultaAtualizada.getId());
 
-    public Consultation atualizarConsulta(Consultation consultation) {
-        Consultation consultationAntiga = consultationRepository.findById(consultation.getId())
-                .orElseThrow(() -> new RuntimeException("Não possui consulta"));
-
-        consultationAntiga.getPaciente().getConsultas().remove(consultationAntiga);
-        patientRepository.save(consultationAntiga.getPaciente());
-
-        consultationAntiga.getMedico().getConsultas().remove(consultationAntiga);
-        doctorRepository.save(consultationAntiga.getMedico());
-
-        if (consultation.getStatus() == ConsultationStatus.CONSULTA_CANCELADA) {
-            throw new RuntimeException("Não é permitido fazer alteraçãp em uma consulta cancelada.");
+        if (consultaAtualizada.getStatus() == ConsultationStatus.CONSULTA_CANCELADA) {
+            throw new RuntimeException("Não é possível alterar uma consulta cancelada.");
         }
 
-        if (LocalDate.parse(consultation.getDataConsulta()).isAfter(LocalDate.now()) ||
-                (LocalDate.parse(consultation.getDataConsulta()).isEqual(LocalDate.now()) &&
-                        LocalTime.parse(consultation.getHorarioConsulta()).isAfter(LocalTime.now()))) {
-            throw new RuntimeException("Não é permitido fazer alteraçãp em uma consulta antes do horario.");
-        }
-        consultation.setStatus(ConsultationStatus.CONSULTA_REALIZADA);
+        validarHorarioConsulta(consultaAtualizada);
 
-        return consultationRepository.save(consultation);
+        removerConsultaPacienteEMedico(consultaExistente);
+
+        consultaAtualizada.setStatus(ConsultationStatus.CONSULTA_REALIZADA);
+
+        return salvarConsultaEAtualizarRelacionados(consultaAtualizada);
     }
 
+    private boolean isConsultaExistente(Consultation consulta) {
+        return consultationRepository.existsByPacienteIdAndHorarioConsultaAndDataConsulta(
+                consulta.getPaciente().getId(),
+                consulta.getHorarioConsulta(),
+                consulta.getDataConsulta()
+        );
+    }
+
+    private void adicionarConsultaPacienteEMedico(Consultation consulta) {
+        consulta.getPaciente().getConsultas().add(consulta);
+        consulta.getMedico().getConsultas().add(consulta);
+    }
+
+    private void removerConsultaPacienteEMedico(Consultation consulta) {
+        consulta.getPaciente().getConsultas().remove(consulta);
+        consulta.getMedico().getConsultas().remove(consulta);
+        patientRepository.save(consulta.getPaciente());
+        doctorRepository.save(consulta.getMedico());
+    }
+
+    private void validarHorarioConsulta(Consultation consulta) {
+        LocalDate dataConsulta = LocalDate.parse(consulta.getDataConsulta());
+        LocalTime horarioConsulta = LocalTime.parse(consulta.getHorarioConsulta());
+
+        if (dataConsulta.isAfter(LocalDate.now()) ||
+                (dataConsulta.isEqual(LocalDate.now()) && horarioConsulta.isAfter(LocalTime.now()))) {
+            throw new RuntimeException("Não é permitido alterar uma consulta antes do horário agendado.");
+        }
+    }
+
+    private Consultation salvarConsultaEAtualizarRelacionados(Consultation consulta) {
+        consultationRepository.save(consulta);
+        patientRepository.save(consulta.getPaciente());
+        doctorRepository.save(consulta.getMedico());
+        return consulta;
+    }
 }
+
