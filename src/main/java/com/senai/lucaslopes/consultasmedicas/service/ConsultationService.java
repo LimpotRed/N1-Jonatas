@@ -18,8 +18,10 @@ public class ConsultationService {
 
     @Autowired
     private ConsultationRepository consultationRepository;
+
     @Autowired
     private PatientRepository patientRepository;
+
     @Autowired
     private DoctorRepository doctorRepository;
 
@@ -37,25 +39,19 @@ public class ConsultationService {
     }
 
     public Consultation agendarConsulta(Consultation consulta) {
-
         if (isConsultaExistente(consulta)) {
             throw new RuntimeException("O paciente já possui uma consulta agendada nesta data e horário.");
         }
 
-
         adicionarConsultaPacienteEMedico(consulta);
 
-
         consulta.setStatus(ConsultationStatus.CONSULTA_AGENDADA);
-
 
         return salvarConsultaEAtualizarRelacionados(consulta);
     }
 
     public void cancelarConsulta(Integer id) {
-
         Consultation consulta = buscarConsultaPorId(id);
-
 
         if (consulta.getStatus() == ConsultationStatus.CONSULTA_REALIZADA) {
             throw new RuntimeException("Não é possível cancelar uma consulta já realizada.");
@@ -84,7 +80,7 @@ public class ConsultationService {
     }
 
     private boolean isConsultaExistente(Consultation consulta) {
-        return consultationRepository.existsByPacienteIdAndHorarioConsultaAndDataConsulta(
+        return consultationRepository.existsByPatientIdAndHorarioConsultaAndDataConsulta(
                 consulta.getPaciente().getId(),
                 consulta.getHorarioConsulta(),
                 consulta.getDataConsulta()
@@ -99,8 +95,7 @@ public class ConsultationService {
     private void removerConsultaPacienteEMedico(Consultation consulta) {
         consulta.getPaciente().getConsultas().remove(consulta);
         consulta.getMedico().getConsultas().remove(consulta);
-        patientRepository.save(consulta.getPaciente());
-        doctorRepository.save(consulta.getMedico());
+
     }
 
     private void validarHorarioConsulta(Consultation consulta) {
@@ -120,4 +115,3 @@ public class ConsultationService {
         return consulta;
     }
 }
-

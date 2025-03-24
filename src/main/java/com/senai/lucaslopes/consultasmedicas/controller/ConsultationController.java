@@ -23,7 +23,7 @@ public class ConsultationController {
         return consultationService.obterConsultas();
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/consulta/{id}")
     public Consultation obterConsultaPorId(@PathVariable Integer id) {
         return consultationService.buscarConsultaPorId(id);
     }

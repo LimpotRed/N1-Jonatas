@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 @Table(name = "consultas")
 public class Consultation {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
     @Column(name = "dataConsulta", length = 100)
@@ -19,11 +19,11 @@ public class Consultation {
     private ConsultationStatus status;
 
     @ManyToOne
-    @JoinColumn(name = "medicos[id]")
+    @JoinColumn(name = "medico_id")
     private Doctor doctor;
 
     @ManyToOne
-    @JoinColumn(name = "pacientes[id]")
+    @JoinColumn(name = "paciente_id")
     private Patient patient;
 
     public Consultation() {
